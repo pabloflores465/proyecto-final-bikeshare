@@ -102,6 +102,16 @@ def proximidad(rf, Xtr, Xq):
     return (hojas_q[:, None, :] == hojas_tr[None, :, :]).mean(axis=2)
 
 
+def traza_bosque(rf, Xtr):
+    """sum_i S_ii = 1/T sum_t sum_i 1 / tamaño de la hoja de x_i en el árbol t."""
+    hojas = rf.apply(Xtr)
+    tr = 0.0
+    for t in range(hojas.shape[1]):
+        tam = np.bincount(hojas[:, t])
+        tr += np.sum(1.0 / tam[hojas[:, t]])
+    return tr / hojas.shape[1]
+
+
 def n_efectivo(W):
     """Tamaño efectivo de muestra de Kish por fila."""
     return W.sum(axis=1) ** 2 / (W ** 2).sum(axis=1)
