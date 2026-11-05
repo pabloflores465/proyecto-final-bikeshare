@@ -2,11 +2,13 @@
 // Uso, desde la raíz del repo y con las figuras ya generadas por el notebook:
 //   node scripts/generar_slides.js        -> slides/presentacion.pptx
 // El PDF se exporta desde PowerPoint (ver README).
+const fs = require("fs");
 const path = require("path");
 const pptxgen = require("pptxgenjs");
 
 const RAIZ = path.resolve(__dirname, "..");
 const FIG = (f) => path.join(RAIZ, "figuras", f);
+const FORM = (f) => path.join(RAIZ, "slides", "formulas", f + ".png"); // generadas por scripts/formulas.py
 
 // Paleta del estilo Swiss International
 const ROJO = "E8000D", NEGRO = "111111", GRIS = "444444", LINEA = "DDDDDD", BLANCO = "FFFFFF", GRIS_CLARO = "9A9A9A";
@@ -118,6 +120,43 @@ function barras(s, etiquetas, valores, x, y, w, h, titulo, colores, fmt = "0.00"
   });
 }
 
+// tamaño natural (pulgadas) de una fórmula renderizada a 200 dpi con fuente de 26 pt
+function tamFormula(nombre, escala, wMax) {
+  const buf = fs.readFileSync(FORM(nombre));
+  let w = (buf.readUInt32BE(16) / 200) * escala, h = (buf.readUInt32BE(20) / 200) * escala;
+  if (w > wMax) { h *= wMax / w; w = wMax; }
+  return { w, h };
+}
+
+// fórmula a ~19 pt (escala 0.75), encogida si no cabe en wMax
+function formula(s, nombre, x, y, wMax, escala = 0.75) {
+  const { w, h } = tamFormula(nombre, escala, wMax);
+  s.addImage({ path: FORM(nombre), x, y, w, h, altText: nombre });
+  return y + h;
+}
+
+// lámina de derivación: pasos numerados, cada uno con su etiqueta y su fórmula; todo se escala para caber
+function derivacion(kicker, titulo, pasos, notas, cierre) {
+  const s = nueva(kicker, titulo, notas);
+  const Y0 = 1.65, YMAX = cierre ? 6.05 : 6.55, ETQ = 0.34, HUECO = 0.24, wF = ANCHO - 0.65;
+  const fijo = pasos.length * (ETQ + HUECO);
+  const natural = pasos.reduce((t, p) => t + tamFormula(p[2], 0.75, wF).h, 0);
+  const escala = Math.max(0.45, Math.min(0.75, 0.75 * (YMAX - Y0 - fijo) / natural));
+  let y = Y0;
+  pasos.forEach(([num, texto, nombre], i) => {
+    s.addText(num, { x: X0, y, w: 0.6, h: 0.3, fontFace: MONO, fontSize: 13, bold: true, color: ROJO, margin: 0, isTextBox: true });
+    s.addText(texto, { x: X0 + 0.65, y: y + 0.01, w: wF, h: 0.28, fontFace: TITULO, fontSize: 12.5, color: GRIS,
+                       margin: 0, isTextBox: true });
+    y = formula(s, nombre, X0 + 0.65, y + ETQ, wF, escala) + HUECO;
+    if (i < pasos.length - 1) regla(s, X0 + 0.65, y - HUECO / 2, wF);
+  });
+  if (cierre) {
+    s.addText(cierre, { x: X0, y: Math.min(y, 6.15), w: ANCHO, h: 0.45, fontFace: TITULO, fontSize: 13.5, bold: true,
+                        color: NEGRO, margin: 0, isTextBox: true });
+  }
+  return s;
+}
+
 // ---------------------------------------------------------------- 1 portada
 {
   const s = pres.addSlide({ masterName: "PORTADA" });
@@ -174,6 +213,39 @@ function barras(s, etiquetas, valores, x, y, w, h, titulo, colores, fmt = "0.00"
   cifra(s, "105", "desviación cruda de day; hr ≈ 6.9, mes ≈ 3.4, windspeed ≈ 0.12. La usamos en la Parte 4.", X0 + 4.1, 4.1, 3.6);
   cifra(s, "80 / 20", "partición con random_state = 0; el escalador se ajusta solo con entrenamiento.", X0 + 8.2, 4.1, 3.7);
 }
+
+// ---------------------------------------------------------------- 1.1 derivación OLS
+derivacion("Parte 1.1 · Derivación", "OLS: del estimador al voto",
+  [["01", "Mínimos cuadrados con la matriz de diseño X̃ = [1, X]", "ols1"],
+   ["02", "La predicción es lineal en y: lo que multiplica a y es el vector de pesos", "ols2"],
+   ["03", "La columna de unos es la primera columna de X̃ (1 = X̃e₁), así que los pesos suman 1", "ols3"],
+   ["04", "Equivalente: H proyecta sobre el espacio columna de X̃ y el vector de unos ya vive ahí", "ols4"]],
+  "Pizarrón: escribir β̂, sustituir en ŷ(x) = x̃ᵀβ̂ y reconocer w(x). Para la suma: 1 = X̃e₁ porque la primera columna de X̃ son unos; entonces X̃ᵀX̃ e₁ se cancela con su inversa y queda x̃ᵀe₁, que es la primera entrada de x̃, es decir 1. Con x = x_i esto es H·1 = 1.",
+  "Los pesos de OLS suman 1 para cualquier x, pero pueden ser negativos: no es un promedio convexo.");
+
+// ---------------------------------------------------------------- 1.2 derivación ridge
+derivacion("Parte 1.2 · Derivación", "Ridge: el intercepto no se penaliza",
+  [["01", "Problema que resuelve Ridge de scikit-learn (λ no toca a β₀)", "ridge1"],
+   ["02", "Derivar respecto a β₀ despeja el intercepto; queda un ridge sobre los datos centrados", "ridge2"],
+   ["03", "Sustituir en ŷ(x) = β̂₀ + xᵀβ̂ y leer los pesos", "ridge3"],
+   ["04", "Suma de pesos: el segundo término se anula porque las columnas centradas suman cero", "ridge4"],
+   ["05", "Lo “obvio” (penalizar también la columna de unos) no cuadra con .predict()", "ridge5"]],
+  "Pizarrón: derivar respecto a β₀ da n·β₀ = Σ(y_i − x_iᵀβ), o sea β̂₀ = ȳ − x̄ᵀβ̂. Sustituyendo queda ‖y_c − X_cβ‖² + λ‖β‖², cuya solución es la de ridge con X_c. Como X_cᵀ1 = 0, X_cᵀ(y − ȳ1) = X_cᵀy. La suma de pesos es 1 por el término 1/n. Si se penaliza la columna de unos, con X estandarizada el intercepto vale nȳ/(n+λ) y los pesos suman n/(n+λ).",
+  null);
+
+// ---------------------------------------------------------------- 1.3-1.6 fórmulas k-NN, árbol, bosque
+derivacion("Parte 1.3 – 1.4 · Fórmulas", "k-NN, árbol y bosque: promedios locales",
+  [["01", "k-NN (k = 30): 1/k a cada uno de los k vecinos (.kneighbors())", "knn"],
+   ["02", "Árbol (profundidad 6): 1/|hoja| a quien cae en la misma hoja (.apply())", "arbol"],
+   ["03", "Bosque sin bootstrap: cada árbol promedia su hoja y el bosque promedia los T árboles", "bosque"]],
+  "Bosque: ŷ_t(x) es el promedio de la hoja de x en el árbol t, o sea Σ_i 1{x_i∈L_t(x)} y_i / |L_t(x)|; el bosque promedia ŷ_t sobre t y se intercambian las sumas. Los tres son pesos no negativos que suman 1: promedios locales.",
+  "Los tres pesos son ≥ 0 y suman 1: un promedio convexo de las y de entrenamiento.");
+
+derivacion("Parte 1.4 – 1.6 · Fórmulas", "Bosque con bootstrap y proximidad",
+  [["04", "Con bootstrap cada hoja promedia su muestra: la fila i cuenta cᵢₜ veces (las veces que entró al árbol t)", "bosque_boot"],
+   ["05", "Proximidad: cuenta coincidencias sin dividir entre el tamaño de la hoja; su suma es el tamaño medio de la hoja", "prox"]],
+  "Con bootstrap=True la fórmula sin c_it falla hasta por 0.044; con c_it cuadra a 1e-15. La proximidad de la fila 7 suma 6.495, el tamaño medio de su hoja: le falta dividir entre |L_t(x)| dentro de cada árbol para ser un peso.",
+  "Fila 7: Σ prox = 6.495 = tamaño medio de la hoja; normalizarla al final no basta (difiere hasta 0.0026).");
 
 // ---------------------------------------------------------------- 4 pesos
 {
@@ -244,6 +316,14 @@ function barras(s, etiquetas, valores, x, y, w, h, titulo, colores, fmt = "0.00"
   cuerpo(s, [[{ text: "hr 0.65", bold: true }, { text: " · temp 0.09 · hum 0.07 · day 0.07" }]], 8.0, 5.1, 4.6, 0.6,
     { bullet: false, fontSize: 14 });
 }
+
+// ---------------------------------------------------------------- 2 · fórmulas de evidencia
+derivacion("Parte 2 · Fórmulas", "Dos números para la ficha de evidencia (y un tercero)",
+  [["01", "Tamaño efectivo de muestra de Kish: en cuántas filas se apoya la predicción (m pesos iguales ⇒ m)", "nef"],
+   ["02", "Concentración: la condición de Hájek–Šidák del TLC; si es grande, una sola fila manda", "conc"],
+   ["03", "Lo que agregamos: la dispersión ponderada de los testigos y la varianza aproximada del voto", "disp"]],
+  "N_ef: si todos los pesos son 1/m, (Σw)² = 1 y Σw² = 1/m, así que N_ef = m. c(x) es la fracción de la suma de cuadrados que aporta el peso más grande; el TLC para sumas ponderadas necesita que vaya a cero. En nuestros datos N_ef no ordenó el error, pero la dispersión de testigos sí, porque la varianza del voto es σ²(x)/N_ef y σ²(x) cambia mucho por hora.",
+  "Hiperparámetros por CV de 5 pliegues: ridge λ ≈ 17.8, k = 4, profundidad 11, min_samples_leaf = 1.");
 
 // ---------------------------------------------------------------- 8 fichas
 {
@@ -318,9 +398,23 @@ function barras(s, etiquetas, valores, x, y, w, h, titulo, colores, fmt = "0.00"
   regla(s, X0, 4.0, ANCHO);
 }
 
+// ---------------------------------------------------------------- 3.1 derivación de trazas
+derivacion("Parte 3.1 · Derivación", "Trazas de OLS y ridge",
+  [["OLS", "Traza cíclica: tr(AB) = tr(BA)", "tr_ols"],
+   ["RID", "SVD de la matriz centrada; el término (1/n)11ᵀ aporta traza 1", "tr_ridge"]],
+  "Ridge: X_c(X_cᵀX_c + λI)⁻¹X_cᵀ = UDVᵀ(VD²Vᵀ + λI)⁻¹VDUᵀ = UD(D² + λI)⁻¹DUᵀ, y su traza es Σ d_j²/(d_j²+λ) porque UᵀU = I. Con λ → 0 se recupera p + 1; con λ → ∞ queda 1 (solo el intercepto).",
+  "Con λ = 0 la traza de ridge es p + 1 = 11 (OLS); con λ → ∞ tiende a 1.");
+
+derivacion("Parte 3.1 · Derivación", "Trazas de k-NN, árbol y bosque",
+  [["KNN", "Sin filas repetidas, cada fila es su propio vecino más cercano (distancia 0)", "tr_knn"],
+   ["ÁRB", "Agrupar la suma por hojas: cada hoja aporta |L| · 1/|L| = 1", "tr_arbol"],
+   ["BOS", "Sin forma cerrada: se suma Sᵢᵢ directamente (sin bootstrap = nº medio de hojas)", "tr_bosque"]],
+  "k-NN: si hay filas repetidas, el empate puede dejar fuera a la propia fila y la traza baja; en Bikeshare no hay repetidas (cada día-hora aparece una vez). Árbol y bosque se verifican contra np.trace(S) con S completa sobre 2 000 filas.",
+  null);
+
 // ---------------------------------------------------------------- 12 tr(S)
 {
-  const s = nueva("Parte 3.1 · Grados de libertad", "tr(S): cuánto se vota a sí misma cada fila",
+  const s = nueva("Parte 3.1 · Grados de libertad", "tr(S): fórmula contra np.trace(S)",
     "OLS: traza cíclica, tr(H) = tr(I_{p+1}). Ridge: SVD de X_c. k-NN: cada fila es su propio vecino más cercano; no hay filas repetidas. Árbol: sumar 1/|L| sobre la hoja da 1 por hoja. Bosque: sin forma cerrada, sumamos S_ii.");
   tabla(s, [
     ["Modelo", "Fórmula", "Idea"],
@@ -353,6 +447,15 @@ function barras(s, etiquetas, valores, x, y, w, h, titulo, colores, fmt = "0.00"
     9.3, 4.4, 3.3, 1.7, { bullet: false, fontSize: 13 });
 }
 
+// ---------------------------------------------------------------- 3.3 derivación del optimismo
+derivacion("Parte 3.3 · Derivación", "Optimismo: por qué cuesta 2σ²·tr(S)/n",
+  [["01", "Definición (ESL §7.4): error en los mismos xᵢ con y nuevas menos error de entrenamiento", "opt0"],
+   ["02", "Con y nueva independiente de ŷ: se expande alrededor de fᵢ y el término cruzado vale 0", "opt1"],
+   ["03", "Con la misma y: el término cruzado es −2·Cov(ŷᵢ, yᵢ); la resta da el resultado del paso 1", "opt2"],
+   ["04", "Si S no depende de y y Var(yᵢ) = σ² (independientes), solo sobrevive j = i", "opt3"]],
+  "Escribir y_i = f_i + ε_i. (y_i − ŷ_i)² = (y_i − f_i)² + (f_i − ŷ_i)² + 2(y_i − f_i)(f_i − ŷ_i). Con y nueva, E[(y_nueva − f)(f − ŷ)] = 0 porque ε' es independiente. Con la y de entrenamiento, E[ε_i(f_i − ŷ_i)] = −Cov(ε_i, ŷ_i) = −Cov(y_i, ŷ_i). Restando: 2Cov(ŷ_i, y_i). Con ŷ = Sy y S fija, Cov(Σ_j S_ij y_j, y_i) = S_ii σ².",
+  "En el árbol S depende de y (los cortes miran y): la fórmula subestima el optimismo 2.7× a 4.3×.");
+
 // ---------------------------------------------------------------- 14 optimismo
 {
   const s = nueva("Parte 3.3 – 3.6 · Optimismo", "2σ²·tr(S)/n solo cuadra si S no depende de y",
@@ -375,6 +478,20 @@ function barras(s, etiquetas, valores, x, y, w, h, titulo, colores, fmt = "0.00"
             ["Prueba", "0.136"]], 8.75, 4.45, 3.9, [2.4, 1.5], { fontSize: 13, rowH: 0.36 });
   cuerpo(s, [[{ text: "3.5: ", bold: true }, { text: "la brecha prueba − entrenamiento no es el optimismo, porque en prueba también cambian los x." }]],
     X0, 6.0, 7.6, 0.6, { bullet: false, fontSize: 13 });
+}
+
+// ---------------------------------------------------------------- 4 · la distancia
+{
+  const s = nueva("Parte 4 · Escala", "Escoger la escala es escoger el kernel",
+    "Toda distancia euclídea pondera cada variable por el cuadrado de su escala. En crudo, el aporte esperado de cada variable a d² es proporcional a su varianza: day domina con 99.4 %. Estandarizar divide entre s_j² y todas pesan igual, lo cual no siempre es bueno.");
+  let y = formula(s, "dist", X0, 1.8, ANCHO);
+  etiqueta(s, "Aporte esperado a d² en escala cruda (∝ varianza)", X0, y + 0.35, 7);
+  barras(s, ["day", "hr", "mnth", "weekday", "weathersit", "otras 5"], [99.42, 0.43, 0.11, 0.04, 0.004, 0.003],
+    X0, y + 0.7, 7.2, 6.55 - (y + 0.7), "% de la varianza de la distancia", [ROJO], "0.0");
+  cuerpo(s, ["Desviaciones crudas (0.4): day ≈ 105, hr ≈ 6.9, mes ≈ 3.4, weekday ≈ 2.0, temp ≈ 0.20, windspeed ≈ 0.12",
+             "Pero day y hr están en enteros: localmente, 1 día pesa igual que 1 hora → “misma hora en días vecinos”",
+             "k-NN y k-means dependen de la distancia; el árbol no (solo usa el orden de cada variable)"],
+    8.3, y + 0.75, 4.3, 3.5, { fontSize: 13.5 });
 }
 
 // ---------------------------------------------------------------- 15 escala

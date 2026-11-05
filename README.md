@@ -15,7 +15,7 @@ predicción ($N_{ef}$, $c(x)$, testigos), el costo de la flexibilidad ($\mathrm{
 | `notebooks/pesos.py` | Funciones de pesos $w_i(x)$ de los cinco modelos, $N_{ef}$, $c(x)$, proximidad y `verificar`. |
 | `data/Bikeshare.csv` | Datos originales (ISLP). California Housing se descarga con `fetch_california_housing()`. |
 | `memo/memo_veredicto.pdf` | Memo de la Parte 5 para el equipo de reubicación (fuente en `.md`). |
-| `slides/presentacion.pdf` | Diapositivas (fuente `.pptx`, estilo Swiss International). |
+| `slides/presentacion.pdf` | Diapositivas (26, fuente `.pptx`, estilo Swiss International) con las derivaciones de 1.1, 1.2, 3.1 y 3.3. |
 | `figuras/` | Figuras que genera el notebook. |
 | `individuales/` | Partes individuales (grafos de colaboración de TMDB), como submódulos de git. |
 
@@ -30,7 +30,7 @@ jupyter nbconvert --to notebook --execute --inplace notebooks/proyecto_final.ipy
 ```
 
 El memo se regenera con `python scripts/generar_pdfs.py`. Las diapositivas se generan con
-`node scripts/generar_slides.js` (requiere `pptxgenjs`) y se exportan a PDF desde PowerPoint.
+`python scripts/formulas.py` y `node scripts/generar_slides.js` (requiere `pptxgenjs`) y se exportan a PDF desde PowerPoint.
 
 ## Resultados principales
 
