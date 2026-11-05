@@ -1,3 +1,6 @@
 [submodule "individuales/rodolfo-samuel-l-jackson"]
 	path = individuales/rodolfo-samuel-l-jackson
 	url = https://github.com/pabloflores465/grafo-colaboracion-samuel-l-jackson.git
+[submodule "individuales/nohel-laurence-fishburne"]
+	path = individuales/nohel-laurence-fishburne
+	url = https://github.com/NohelEstradaP/grafo-colaboracion-laurence-fishburne.git
