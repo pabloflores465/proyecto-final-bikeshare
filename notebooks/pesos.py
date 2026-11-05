@@ -102,6 +102,16 @@ def proximidad(rf, Xtr, Xq):
     return (hojas_q[:, None, :] == hojas_tr[None, :, :]).mean(axis=2)
 
 
+def n_efectivo(W):
+    """Tamaño efectivo de muestra de Kish por fila."""
+    return W.sum(axis=1) ** 2 / (W ** 2).sum(axis=1)
+
+
+def concentracion(W):
+    W2 = W ** 2
+    return W2.max(axis=1) / W2.sum(axis=1)
+
+
 def verificar(w, y_train, pred, tol=1e-8):
     assert abs(np.dot(w, y_train) - pred) < tol, (np.dot(w, y_train), pred)
     return True
