@@ -15,7 +15,7 @@ predicción ($N_{ef}$, $c(x)$, testigos), el costo de la flexibilidad ($\mathrm{
 | `notebooks/pesos.py` | Funciones de pesos $w_i(x)$ de los cinco modelos, $N_{ef}$, $c(x)$, proximidad y `verificar`. |
 | `data/Bikeshare.csv` | Datos originales (ISLP). California Housing se descarga con `fetch_california_housing()`. |
 | `memo/memo_veredicto.pdf` | Memo de la Parte 5 para el equipo de reubicación (fuente en `.md`). |
-| `slides/presentacion.pdf` | Diapositivas (26, fuente `.pptx`, estilo Swiss International) con las derivaciones de 1.1, 1.2, 3.1 y 3.3. |
+| `slides/presentacion.pdf` | Diapositivas (29, fuente `.pptx`, estilo Swiss International) con las derivaciones de 1.1, 1.2, 3.1 y 3.3 y las fórmulas de la parte individual de Samuel L. Jackson. |
 | `figuras/` | Figuras que genera el notebook. |
 | `individuales/` | Partes individuales (grafos de colaboración de TMDB), como submódulos de git. |
 

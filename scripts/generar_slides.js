@@ -537,6 +537,37 @@ derivacion("Parte 3.3 · Derivación", "Optimismo: por qué cuesta 2σ²·tr(S)/
        legendFontFace: TITULO, legendFontSize: 11, legendColor: GRIS, showTitle: false, ...EJE, dataLabelFontSize: 10 });
 }
 
+// ---------------------------------------------------------------- parte individual de Rodolfo (Samuel L. Jackson)
+{
+  const s = nueva("Parte individual · Rodolfo Flores", "Samuel L. Jackson: un grafo de colaboración es un kernel",
+    "B es la matriz actores por películas. A = BBᵀ cuenta películas compartidas: dos actores se parecen si salen en las mismas películas, igual que dos filas se parecen en el bosque si caen en las mismas hojas. Cada película hace el papel de una hoja. La diagonal de BBᵀ es el número de películas de cada actor.");
+  let y = formula(s, "slj_B", X0, 1.7, ANCHO);
+  y = formula(s, "slj_A", X0, y + 0.22, ANCHO);
+  y = formula(s, "slj_diag", X0, y + 0.22, ANCHO);
+  y = formula(s, "slj_bosque", X0, y + 0.3, ANCHO);
+  regla(s, X0, y + 0.3, ANCHO);
+  cifra(s, "108", "películas cuentan para Jackson (1975–2025, order < 5)", X0, y + 0.45, 2.8, ROJO);
+  cifra(s, "377", "actores (nodos) y 2 666 aristas", X0 + 3.05, y + 0.45, 2.8);
+  cifra(s, "BBᵀ = A", "fuera de la diagonal, exacto; B es 377 × 10 334", X0 + 6.1, y + 0.45, 2.8);
+  cifra(s, "3", "aislados (papeles de sí mismos): λ₂ = 0 con la semilla", X0 + 9.15, y + 0.45, 2.8);
+}
+
+derivacion("Parte individual · Espectro", "Laplaciano: un valor propio cero por componente", [
+  ["01", "Laplaciano: grado menos adyacencia (con pesos = películas compartidas)", "slj_L"],
+  ["02", "Laplaciano normalizado: cada arista se divide entre la raíz de los grados", "slj_Lsym"],
+  ["03", "Forma cuadrática: vᵀLv = 0 obliga a v constante dentro de cada componente", "slj_cuadratica"],
+  ["04", "Por eso las componentes se cuentan con los valores propios (casi) cero", "slj_componentes"],
+  ["05", "Nodo aislado: D^(−1/2) no existe; con esta convención da λ = 0 y el conteo cuadra", "slj_convencion"],
+  ["06", "Mayor brecha. Con semilla: λ₁ = … = λ₄ = 0 (3 aislados + resto); en su componente, λ₂ = 0.247", "slj_brecha"],
+], "La forma cuadrática explica por qué hay un valor propio cero por componente. Con la semilla hay cuatro ceros: los 3 aislados más el resto, así que la mayor brecha está en k = 4. En la componente de la semilla λ2 = 0.247. La semilla tiene grado ponderado 415: en L_sym sus aristas pesan poco y los grupos que solo se unen por ella casi se separan.");
+
+derivacion("Parte individual · Comunidades y centralidad", "Clustering espectral, Fiedler y centralidad", [
+  ["01", "Ng–Jordan–Weiss. k = 3: Hollywood comercial (187), núcleo de Jackson de los 90 (115), cine afroamericano (72)", "slj_njw"],
+  ["02", "Vector de Fiedler (sin la semilla): 318 actores del cine comercial contra 51 del afroamericano; cruza 15 % de las aristas", "slj_fiedler"],
+  ["03", "Centralidad de vector propio: 3 de 5 coinciden con el grado; entran Travolta y Freeman", "slj_centralidad"],
+], "Con k = 2 se separan los italianos de The Red Violin; con k = 3 aparecen épocas e industrias. El signo del vector de Fiedler separa el Hollywood comercial del cine afroamericano e independiente. La centralidad de vector propio premia repetir películas con actores centrales, por eso entran Travolta y Freeman.",
+"Como el bosque con sus hojas: el espectro del kernel señala dónde la conexión (la evidencia) es débil.");
+
 // ---------------------------------------------------------------- 17 cierre
 {
   const s = pres.addSlide({ masterName: "PORTADA" });
