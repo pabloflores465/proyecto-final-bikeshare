@@ -52,3 +52,56 @@ def pesos_arbol(arbol, Xtr, Xq):
     tam = np.bincount(hoja_tr, minlength=arbol.tree_.node_count)
     W = (hoja_q[:, None] == hoja_tr[None, :]).astype(float)
     return W / tam[hoja_q][:, None]
+
+
+def _indicadoras(hojas_tr, hojas_q, n_nodos, conteos=None):
+    """Matrices one-hot (filas x hojas de todos los árboles concatenadas)."""
+    n, T = hojas_tr.shape
+    m = hojas_q.shape[0]
+    offs = np.concatenate([[0], np.cumsum(n_nodos)[:-1]])
+    cols_tr = (hojas_tr + offs).ravel()
+    cols_q = (hojas_q + offs).ravel()
+    total = int(np.sum(n_nodos))
+    vals_tr = np.ones(n * T) if conteos is None else conteos.ravel()
+    Ztr = sparse.csr_matrix((vals_tr, (np.repeat(np.arange(n), T), cols_tr)), shape=(n, total))
+    Zq = sparse.csr_matrix((np.ones(m * T), (np.repeat(np.arange(m), T), cols_q)), shape=(m, total))
+    return Ztr, Zq
+
+
+def pesos_bosque(rf, Xtr, Xq, conteos=None):
+    """w_i(x) = 1/T sum_t 1{x_i en la hoja de x en el árbol t} / tamaño de la hoja.
+
+    Si `conteos` (n, T) se pasa, cada fila cuenta tantas veces como aparece en la
+    muestra bootstrap del árbol t (es lo que realmente promedia cada hoja)."""
+    hojas_tr = rf.apply(Xtr)
+    hojas_q = rf.apply(Xq)
+    n, T = hojas_tr.shape
+    n_nodos = np.array([e.tree_.node_count for e in rf.estimators_])
+    Ztr, Zq = _indicadoras(hojas_tr, hojas_q, n_nodos, conteos)
+    tam = np.asarray(Ztr.sum(axis=0)).ravel()
+    inv = np.divide(1.0, tam, out=np.zeros_like(tam), where=tam > 0)
+    W = (Zq @ sparse.diags(inv) @ Ztr.T).toarray()
+    return W / T
+
+
+def conteos_bootstrap(rf, n):
+    """Cuántas veces entra cada fila en la muestra bootstrap de cada árbol."""
+    from sklearn.ensemble._forest import _generate_sample_indices, _get_n_samples_bootstrap
+    nb = _get_n_samples_bootstrap(n, rf.max_samples, None)
+    C = np.zeros((n, len(rf.estimators_)))
+    for t, e in enumerate(rf.estimators_):
+        idx = _generate_sample_indices(e.random_state, n, nb, None)
+        C[:, t] = np.bincount(idx, minlength=n)
+    return C
+
+
+def proximidad(rf, Xtr, Xq):
+    """Fracción de árboles en los que x_i y x caen en la misma hoja."""
+    hojas_tr = rf.apply(Xtr)
+    hojas_q = rf.apply(Xq)
+    return (hojas_q[:, None, :] == hojas_tr[None, :, :]).mean(axis=2)
+
+
+def verificar(w, y_train, pred, tol=1e-8):
+    assert abs(np.dot(w, y_train) - pred) < tol, (np.dot(w, y_train), pred)
+    return True
